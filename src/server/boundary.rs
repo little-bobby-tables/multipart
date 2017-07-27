@@ -114,11 +114,13 @@ impl<R> BoundaryReader<R> where R: Read {
 
             let buf_len = self.read_to_boundary()?.len();
 
-            debug!("Discarding {} bytes", buf_len);
-
             if buf_len == 0 {
-                break;
+                warn!("Body ended early");
+                self.at_end = true;
+                return Ok(true);
             }
+
+            debug!("Discarding {} bytes", buf_len);
 
             self.consume(buf_len);
         }

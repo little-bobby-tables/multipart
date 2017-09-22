@@ -536,8 +536,15 @@ pub trait ReadEntry: PrivReadEntry + Sized {
         let field_headers = try_read_entry!(self; self.read_headers());
 
         let data = match field_headers.cont_type {
-            Some(cont_type) => {
-                match cont_type.0 {
+            Some(Mime(TopLevel::Text, _, _)) | None => {
+                let text = try_read_entry!(self; self.read_to_string());
+                MultipartData::Text(MultipartText {
+                    text: text,
+                    inner: Some(self),
+                })
+            },
+            Some(bin_cont_type) => {
+                match bin_cont_type.0 {
                     TopLevel::Multipart => {
                         let msg = format!("Error on field {:?}: nested multipart fields are \
                                            not supported. However, reports of clients sending \
@@ -551,19 +558,12 @@ pub trait ReadEntry: PrivReadEntry + Sized {
                         MultipartData::File(
                             MultipartFile {
                                 filename: field_headers.cont_disp.filename,
-                                content_type: cont_type,
+                                content_type: bin_cont_type,
                                 inner: Some(self)
                             }
                         )
                     }
                 }
-            },
-            None => {
-                let text = try_read_entry!(self; self.read_to_string());
-                MultipartData::Text(MultipartText {
-                    text: text,
-                    inner: Some(self),
-                })
             },
         };
 
